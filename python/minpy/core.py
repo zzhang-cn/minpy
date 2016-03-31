@@ -12,16 +12,22 @@ from .array_variants import ArrayType
 _logger = log.get_logger(__name__)
 
 def grad(func, argnum=0):
+    if type(argnum) is int:
+        argnum = [argnum]
     @functools.wraps(func)
     def wrapped(*args):
         def make_array(x):
             return x if isinstance(x, array.Value) else array.Value.wrap(x)
         arrays = tuple(map(make_array, args))
-        arrays[argnum]._marked_for_bp = True
+        for i in argnum:
+            arrays[i]._marked_for_bp = True
         result_array = func(*arrays)
         _logger.debug('---Forward pass finished. Start backward pass')
-        grad_val = arrays[argnum].node.partial_derivative(result_array.node)
-        arrays[argnum]._marked_for_bp = False
+        grad_val = [arrays[i].node.partial_derivative(result_array.node) for i in argnum]
+        for i in argnum:
+            arrays[i]._marked_for_bp = False
+        if len(grad_val) == 1:
+            grad_val, = grad_val
         return grad_val
     return wrapped
 
